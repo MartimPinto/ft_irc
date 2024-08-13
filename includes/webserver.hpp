@@ -6,7 +6,7 @@
 /*   By: mcarneir <mcarneir@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/08/12 14:56:53 by mcarneir          #+#    #+#             */
-/*   Updated: 2024/08/13 14:26:21 by mcarneir         ###   ########.fr       */
+/*   Updated: 2024/08/13 17:08:16 by mcarneir         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -26,9 +26,10 @@
 #include <sstream>
 #include <string.h>
 #include "Server.hpp"
+#include <vector>
 
 #define PORT 8080
-#define BUFFER_SIZE 30720
+#define BUFFER_SIZE 1024
 
 
 void log(const std::string &message);

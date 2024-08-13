@@ -6,7 +6,7 @@
 /*   By: mcarneir <mcarneir@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/08/13 12:06:14 by mcarneir          #+#    #+#             */
-/*   Updated: 2024/08/13 14:21:32 by mcarneir         ###   ########.fr       */
+/*   Updated: 2024/08/13 17:10:44 by mcarneir         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,6 +14,7 @@
 #define SERVER_HPP
 
 #include "webserver.hpp"
+#include <vector>
 
 class Server
 {
@@ -33,12 +34,16 @@ class Server
 			struct sockaddr_in m_socketAddress;
 			unsigned int m_socketAddress_len;
 			std::string m_serverMessage;
+			std::vector<pollfd> m_fds;
+			int m_timeout;
 
 			
 			int startServer();
 			void closeServer();
 			std::string buildResponse();
-			void sendResponse();
+			void sendResponse(int client_socket);
+			void handleNewConnection();
+			void handleClient(int client_index);
 	
 };
 

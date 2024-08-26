@@ -6,11 +6,11 @@
 #    By: mcarneir <mcarneir@student.42.fr>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/08/12 14:40:50 by mcarneir          #+#    #+#              #
-#    Updated: 2024/08/12 15:32:10 by mcarneir         ###   ########.fr        #
+#    Updated: 2024/08/26 12:38:13 by mcarneir         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
-NAME = webserver
+NAME = irc
 SRCS_DIR = srcs
 OBJ_DIR = bin
 SRCS = $(wildcard $(SRCS_DIR)/*.cpp)

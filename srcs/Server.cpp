@@ -6,40 +6,53 @@
 /*   By: mcarneir <mcarneir@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/08/12 15:17:26 by mcarneir          #+#    #+#             */
-/*   Updated: 2024/08/13 17:11:30 by mcarneir         ###   ########.fr       */
+/*   Updated: 2024/08/27 14:29:28 by mcarneir         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "../includes/Server.hpp"
 
-Server::Server(std::string ip, int port): m_ip_address(ip), m_socket(), m_port(port),
-m_new_socket(), m_socketAddress(), m_socketAddress_len(sizeof(m_socketAddress)),
-m_serverMessage(buildResponse()), m_timeout(3000)
+bool Server::Signal = false;
+
+void Server::sigHandler(int signum)
 {
-	m_socketAddress.sin_family = AF_INET;
-	m_socketAddress.sin_port = htons(m_port);
-	m_socketAddress.sin_addr.s_addr = inet_addr(m_ip_address.c_str());
-	memset(m_socketAddress.sin_zero, 0, sizeof(m_socketAddress.sin_zero));
+	(void)signum;
+	std::cout << std::endl;
+	log("Signal Recieved!");
+	Server::Signal = true;
+}
+
+Server::Server(int port, std::string pass): _socket(), _port(port),
+_newSocket(), _socketAddress(), _socketAddressLen(sizeof(_socketAddress)), _password(pass)
+{
+	struct pollfd pfd;
+	_socketAddress.sin_family = AF_INET;
+	_socketAddress.sin_port = htons(_port);
+	_socketAddress.sin_addr.s_addr = INADDR_ANY;
+	memset(_socketAddress.sin_zero, 0, sizeof(_socketAddress.sin_zero));
 	if (startServer() == 0)
 	{
-		pollfd pfd = {m_socket, POLLIN, 0};
-		m_fds.push_back(pfd);
+		pfd.fd = _socket;
+		pfd.events = POLLIN;
+		pfd.revents = 0;
+		_fds.push_back(pfd);
+		
 	}
 }
 
 int Server::startServer()
 {
-	if ((m_socket = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0)) < 0)
+	if ((_socket = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0)) < 0)
 	{
 		exitError("Cannot create socket");
 		return 1;
 	}
-	if(bind(m_socket, (sockaddr*)&m_socketAddress, m_socketAddress_len) < 0)
+	if(bind(_socket, (sockaddr*)&_socketAddress, _socketAddressLen) < 0)
 	{
 		exitError("Cannot connect socket to address");
 		return 1;
 	}
-	if (listen(m_socket, 20) < 0)
+	if (listen(_socket, SOMAXCONN) < 0)
 	{
 		exitError("Socket listen failed");
 	}
@@ -48,109 +61,111 @@ int Server::startServer()
 
 void Server::startListen()
 {
-	int poll_count;
 	std::ostringstream ss;
-	ss << "\n *** Listening on Address: " 
-	<< inet_ntoa(m_socketAddress.sin_addr)
-	<< " Port: " << ntohs(m_socketAddress.sin_port)
-	<<" ***\n\n";
+	ss << "\n *** Server: " 
+	<< _socket << " Connected" <<" ***\n";
 	log(ss.str());
 
-	while (true)
+	while (Server::Signal == false)
 	{
-		if ((poll_count = poll(m_fds.data(), m_fds.size(), m_timeout)) < 0)
+		if ((poll(&_fds[0], _fds.size(), -1) == -1) && Server::Signal == false)
 			exitError("Poll failed");
-		for (unsigned long i = 0; i < m_fds.size(); ++i)
+		for (size_t i = 0; i < _fds.size(); ++i)
 		{
-			if (m_fds[i].revents & POLLIN)
+			if (_fds[i].revents & POLLIN)
 			{
-				if(m_fds[i].fd == m_socket)
+				if(_fds[i].fd == _socket)
 					handleNewConnection();
 				else
-					handleClient(i);
+					handleClient(_fds[i].fd);
 			}
-		}
-			
+		}	
 	}
+	this->closeServer();
 }
 
 void Server::handleNewConnection()
 {
-	acceptConnection(m_new_socket);
-	pollfd pfd = {m_new_socket, POLLIN, 0};
-	m_fds.push_back(pfd);
+	Client cl;
+	struct sockaddr_in claddr;
+	struct pollfd npoll;
+	socklen_t len = sizeof(claddr);
+	
+	_newSocket = accept(_socket,(sockaddr *)&(claddr), &len);
+	if (_newSocket < 0)
+		exitError("accept() failed");
+	if (fcntl(_newSocket, F_SETFL, O_NONBLOCK) < 0)
+		exitError("fcntl() failed");
+		
+	npoll.fd = _newSocket;
+	npoll.events = POLLIN;
+	npoll.revents = 0;
+
+	cl.setFd(_newSocket);
+	cl.setIp(inet_ntoa(claddr.sin_addr));
+	_clients.push_back(cl);
+	_fds.push_back(npoll);
+		
 	log("New connection accepted");
 }
 
 void Server::handleClient(int client_index)
 {
-	int client_socket = m_fds[client_index].fd;
-	char buffer[BUFFER_SIZE] = {0};
+	char buffer[BUFFER_SIZE];
+	memset(buffer, 0, sizeof(buffer));
 	int bytesReceived;
-	bytesReceived = read(client_socket, buffer, BUFFER_SIZE);
-	if (bytesReceived < 0)
+	bytesReceived = recv(client_index, buffer, BUFFER_SIZE - 1, 0);
+	if (bytesReceived <= 0)
 	{
-		exitError("Failed to read from client");
-	}
-	else if (bytesReceived == 0)
-	{
-		close(client_socket);
-		m_fds.erase(m_fds.begin() + client_index);
+		close(client_index);
+		_fds.erase(_fds.begin() + client_index);
 		log("Client disconnected");
 	}
 	else
 	{
+		buffer[bytesReceived] = '\0';
 		log("Received message from client");
-		sendResponse(client_socket);
 	}
 }
 
 
-
-void Server::acceptConnection(int &new_socket)
-{
-	new_socket = accept(m_socket, (sockaddr *)&m_socketAddress, &m_socketAddress_len);
-	if (new_socket < 0)
-	{
-		std::ostringstream ss;
-		ss << "\n *** Server failed to accept connection from Address: " 
-		<< inet_ntoa(m_socketAddress.sin_addr)
-		<< " Port: " << ntohs(m_socketAddress.sin_port)
-		<<" ***\n\n";
-		exitError(ss.str());
-	}
-}
 
 void Server::closeServer()
 {
-	close(m_socket);
-	close(m_new_socket);
+	for (size_t i = 0; i < _clients.size(); i++)
+	{
+		std::cout << "Client " << _clients[i].getFd() << " disconnected" << std::endl;
+		close(_clients[i].getFd());
+	}
+	close(_socket);
 	exit(0);
 }
 
-std::string Server::buildResponse()
+void Server::clearClients(int fd)
 {
-	std::string htmlFile = "<!DOCTYPE html><html lang=\"en\"><body><h1> HOME </h1><p> Hello from your Server :) </p></body></html>";
-    std::ostringstream ss;
-    ss << "HTTP/1.1 200 OK\nContent-Type: text/html\nContent-Length: " << htmlFile.size() << "\n\n"
-        << htmlFile;
-
-    return ss.str();
-}
-
-void Server::sendResponse(int client_socket)
-{
-	unsigned long bytesSent;
-	bytesSent = write(client_socket, m_serverMessage.c_str(), m_serverMessage.size());
-	if (bytesSent == m_serverMessage.size())
+	for(size_t i = 0; i < _fds.size(); i++)
 	{
-		log("Response sent successfully");
+		if (_fds[i].fd == fd)
+		{
+			_fds.erase(_fds.begin() + i);
+			break ;
+		}
 	}
-	else
+	for(size_t i = 0; i < _clients.size(); i++)
 	{
-		exitError("Failed to send response");
+		if(_clients[i].getFd() == fd)
+		{
+			_clients.erase(_clients.begin() + i);
+			break;
+		}
 	}
 }
+
+void Server::setPort(int port)
+{
+	this->_port = port;
+}
+
 
 Server::~Server()
 {

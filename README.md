@@ -1,2 +1,2 @@
-# webserver
-A HTML server in C++ 98
+# ft_irc
+A IRC server in C++ 98

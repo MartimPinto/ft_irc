@@ -15,6 +15,7 @@
 
 #include <iostream>
 #include <string>
+#include <signal.h>
 #include <poll.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
@@ -26,9 +27,11 @@
 #include <sstream>
 #include <string.h>
 #include "Server.hpp"
+#include "Client.hpp"
 #include <vector>
+#include <fcntl.h>
 
-#define PORT 8080
+
 #define BUFFER_SIZE 1024
 
 

@@ -6,44 +6,48 @@
 /*   By: mcarneir <mcarneir@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/08/13 12:06:14 by mcarneir          #+#    #+#             */
-/*   Updated: 2024/08/26 17:38:07 by mcarneir         ###   ########.fr       */
+/*   Updated: 2024/08/27 14:11:03 by mcarneir         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #ifndef SERVER_HPP
 #define SERVER_HPP
 
+class Client;
+
 #include "irc.hpp"
 #include <vector>
+#include "Client.hpp"
 
 class Server
 {
 	public:
-			Server(std::string ip, int port);
+			Server(int port, std::string pass);
 			~Server();
 			void startListen();
-			void acceptConnection(int &new_socket);
-			
+			static void sigHandler(int signum);
+			void clearClients(int fd);
+			void closeServer();
+			void setPort(int port);
+	
 	
 	private:
 			std::string m_ip_address;
-			int	m_socket;
-			int m_port;
-			int m_new_socket;
-			struct sockaddr_in m_socketAddress;
-			unsigned int m_socketAddress_len;
-			std::string m_serverMessage;
-			std::vector<pollfd> m_fds;
-			int m_timeout;
-
+			int	_socket;
+			int _port;
+			int _newSocket;
+			struct sockaddr_in _socketAddress;
+			unsigned int _socketAddressLen;
+			std::string _password;
+			std::string _serverMessage;
+			std::vector<struct pollfd> _fds;
+			std::vector<Client> _clients;
+			static bool Signal;
 			
+
 			int startServer();
-			void closeServer();
-			std::string buildResponse();
-			void sendResponse(int client_socket);
 			void handleNewConnection();
 			void handleClient(int client_index);
-	
 };
 
 #endif

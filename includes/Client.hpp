@@ -6,7 +6,7 @@
 /*   By: mcarneir <mcarneir@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/08/26 16:56:24 by mcarneir          #+#    #+#             */
-/*   Updated: 2024/08/27 12:54:49 by mcarneir         ###   ########.fr       */
+/*   Updated: 2024/08/28 13:20:01 by mcarneir         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -25,10 +25,13 @@ class Client
 			void setFd(int fd);
 			std::string getIp();
 			void setIp(std::string ip);
+			bool isAuthenticated();
+			void authenticate();
 
 	private:
 			int _fd;
 			std::string _ip;
+			bool _authenticated;
 };
 
 #endif

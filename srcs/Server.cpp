@@ -6,7 +6,7 @@
 /*   By: mcarneir <mcarneir@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/08/12 15:17:26 by mcarneir          #+#    #+#             */
-/*   Updated: 2024/08/27 14:29:28 by mcarneir         ###   ########.fr       */
+/*   Updated: 2024/08/28 16:13:15 by mcarneir         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -113,8 +113,8 @@ void Server::handleClient(int client_index)
 {
 	char buffer[BUFFER_SIZE];
 	memset(buffer, 0, sizeof(buffer));
-	int bytesReceived;
-	bytesReceived = recv(client_index, buffer, BUFFER_SIZE - 1, 0);
+	Client &cli = _clients[client_index - 1];
+	int bytesReceived = recv(client_index, buffer, BUFFER_SIZE - 1, 0);
 	if (bytesReceived <= 0)
 	{
 		close(client_index);
@@ -125,10 +125,34 @@ void Server::handleClient(int client_index)
 	{
 		buffer[bytesReceived] = '\0';
 		log("Received message from client");
+		std::string cmd(buffer);
+		if(!cli.isAuthenticated())
+		{
+			if (cmd.find("PASS") == 0)
+			{
+				std::string pass = cmd.substr(5);
+				pass = pass.substr(0, pass.find("\n"));
+				if (pass == _password)
+				{
+					cli.authenticate();
+					log("Client authenticated sucessfully");
+				}
+				else
+				{
+					log("Client provided incorrect password");
+                    close(client_index);
+                    clearClients(client_index);
+				}
+			}
+			else
+			{
+				std::string error = "ERROR: Use PASS command and type password to authenticate client\r\n";
+                send(client_index, error.c_str(), error.length(), 0);
+			}
+		}
+		
 	}
 }
-
-
 
 void Server::closeServer()
 {
@@ -160,12 +184,6 @@ void Server::clearClients(int fd)
 		}
 	}
 }
-
-void Server::setPort(int port)
-{
-	this->_port = port;
-}
-
 
 Server::~Server()
 {

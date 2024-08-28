@@ -6,7 +6,7 @@
 /*   By: mcarneir <mcarneir@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/08/13 12:06:14 by mcarneir          #+#    #+#             */
-/*   Updated: 2024/08/27 14:11:03 by mcarneir         ###   ########.fr       */
+/*   Updated: 2024/08/28 12:36:21 by mcarneir         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -28,8 +28,6 @@ class Server
 			static void sigHandler(int signum);
 			void clearClients(int fd);
 			void closeServer();
-			void setPort(int port);
-	
 	
 	private:
 			std::string m_ip_address;

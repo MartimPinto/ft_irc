@@ -6,13 +6,13 @@
 /*   By: mcarneir <mcarneir@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/08/26 17:12:05 by mcarneir          #+#    #+#             */
-/*   Updated: 2024/08/26 17:16:49 by mcarneir         ###   ########.fr       */
+/*   Updated: 2024/08/28 13:20:44 by mcarneir         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "../includes/Client.hpp"
 
-Client::Client(){}
+Client::Client(): _authenticated(false){}
 
 int Client::getFd()
 {
@@ -32,6 +32,16 @@ std::string Client::getIp()
 void Client::setIp(std::string ip)
 {
 	this->_ip = ip;
+}
+
+bool Client::isAuthenticated()
+{
+	return this->_authenticated;
+}
+
+void Client::authenticate()
+{
+	_authenticated = true;
 }
 
 Client::~Client(){}

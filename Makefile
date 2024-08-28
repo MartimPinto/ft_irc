@@ -6,7 +6,7 @@
 #    By: mcarneir <mcarneir@student.42.fr>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/08/12 14:40:50 by mcarneir          #+#    #+#              #
-#    Updated: 2024/08/27 12:58:02 by mcarneir         ###   ########.fr        #
+#    Updated: 2024/08/28 16:35:15 by mcarneir         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -25,7 +25,7 @@ all: $(NAME)
 $(OBJ_DIR):
 	@mkdir -p $(OBJ_DIR)
 
-$(OBJ_DIR)/%.o: $(SRCS_DIR)/%.cpp
+$(OBJ_DIR)/%.o: $(SRCS_DIR)/%.cpp | $(OBJ_DIR)
 	@$(CXX) $(CXXFLAGS) -I $(INC) -c $< -o $@
 	
 $(NAME): $(OBJ)

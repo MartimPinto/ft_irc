@@ -6,7 +6,7 @@
 /*   By: mcarneir <mcarneir@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/08/12 15:17:26 by mcarneir          #+#    #+#             */
-/*   Updated: 2024/08/28 16:13:15 by mcarneir         ###   ########.fr       */
+/*   Updated: 2024/09/02 17:48:43 by mcarneir         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -126,31 +126,45 @@ void Server::handleClient(int client_index)
 		buffer[bytesReceived] = '\0';
 		log("Received message from client");
 		std::string cmd(buffer);
-		if(!cli.isAuthenticated())
+		parseCommand(cmd, cli, client_index);
+	}
+}
+
+void Server::parseCommand(std::string cmd, Client &cli, int client_index)
+{
+	if (!cli.isAuthenticated())
+	{
+		if (cmd.find("PASS") == 0 || cmd.find("pass") == 0)
+			verifyPassword(cmd, cli, client_index);
+		else
 		{
-			if (cmd.find("PASS") == 0)
-			{
-				std::string pass = cmd.substr(5);
-				pass = pass.substr(0, pass.find("\n"));
-				if (pass == _password)
-				{
-					cli.authenticate();
-					log("Client authenticated sucessfully");
-				}
-				else
-				{
-					log("Client provided incorrect password");
-                    close(client_index);
-                    clearClients(client_index);
-				}
-			}
-			else
-			{
 				std::string error = "ERROR: Use PASS command and type password to authenticate client\r\n";
                 send(client_index, error.c_str(), error.length(), 0);
-			}
 		}
-		
+	}
+	else
+	{
+		if (cmd.find("QUIT") == 0 || cmd.find("quit") == 0)
+		{
+			close(client_index);
+			_fds.erase(_fds.begin() + client_index);
+			log("Client disconnected");
+		}
+		else if (cmd.find("NICK") == 0 || cmd.find("nick") == 0)
+		{
+			handleNick(cmd, cli);
+			log("Client changed nickname to " + cli.getNick());
+		}
+		else if (cmd.find("USER") == 0 || cmd.find("user") == 0)
+		{
+			cli.setUsername(cmd.substr(5));
+			log("Client changed username to " + cli.getUsername());
+		}
+		else
+		{
+			std::string error = "ERROR: Unknown command\r\n";
+			send(client_index, error.c_str(), error.length(), 0);
+		}	
 	}
 }
 
@@ -184,6 +198,59 @@ void Server::clearClients(int fd)
 		}
 	}
 }
+
+void Server::verifyPassword(std::string cmd, Client &cli, int client_index)
+{
+	std::string pass = cmd.substr(5);
+	pass = pass.substr(0, pass.find("\n"));
+	if (pass == _password)
+	{
+		cli.authenticate();
+		log("Client authenticated sucessfully");
+	}
+	else
+	{
+		std::string error = "ERROR: Provided incorrect password\r\n";
+        send(client_index, error.c_str(), error.length(), 0);
+	}
+}
+
+void Server::handleNick(std::string cmd, Client &cli)
+{
+	std::string nick = cmd.substr(5);
+	printf("NICK: %s\n", nick.c_str());
+	if (nick.empty() || nick.size() > 9)
+	{
+		std::string error = "ERROR: Invalid nickname\r\n";
+		send(cli.getFd(), error.c_str(), error.length(), 0);
+		return;
+	}
+	for (size_t i = 0; i < _clients.size(); i++)
+	{
+		printf("Client Nick: %s\n", _clients[i].getNick().c_str());
+		if (nick == _clients[i].getNick())
+		{
+			std::string error = "ERROR: Nickname already in use\r\n";
+			send(cli.getFd(), error.c_str(), error.length(), 0);
+			return;
+		}
+	}
+	std::string oldNick = cli.getNick();
+	cli.setNick(nick);
+	if (oldNick.empty())
+		log("Client set nickname to " + cli.getNick());
+	else
+	{
+		std::string msg = "NICK " + oldNick + " " + cli.getNick() + "\n";
+		for (size_t i = 0; i < _clients.size(); i++)
+		{
+			if (_clients[i].getFd() != cli.getFd())
+				send(_clients[i].getFd(), msg.c_str(), msg.length(), 0);
+		}
+		log(oldNick + " changed nickname to " + nick);
+	}
+}
+
 
 Server::~Server()
 {

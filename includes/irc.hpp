@@ -40,5 +40,4 @@ void exitError(const std::string &error);
 
 
 
-
 #endif

@@ -6,7 +6,7 @@
 /*   By: mcarneir <mcarneir@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/08/26 17:12:05 by mcarneir          #+#    #+#             */
-/*   Updated: 2024/08/28 13:20:44 by mcarneir         ###   ########.fr       */
+/*   Updated: 2024/09/02 17:12:02 by mcarneir         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -42,6 +42,29 @@ bool Client::isAuthenticated()
 void Client::authenticate()
 {
 	_authenticated = true;
+}
+
+std::string Client::getNick()
+{
+	return this->_nickname;
+}
+
+void Client::setNick(std::string nickname)
+{
+	_nickname = nickname;
+}
+
+std::string Client::getUsername()
+{
+	return this->_username;
+}
+
+void Client::setUsername(std::string username)
+{
+	if (username.empty())
+		return ;
+	else
+		_username = username;
 }
 
 Client::~Client(){}

@@ -6,7 +6,7 @@
 /*   By: mcarneir <mcarneir@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/08/12 15:17:26 by mcarneir          #+#    #+#             */
-/*   Updated: 2024/09/02 17:48:43 by mcarneir         ###   ########.fr       */
+/*   Updated: 2024/09/04 15:22:20 by mcarneir         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -113,7 +113,7 @@ void Server::handleClient(int client_index)
 {
 	char buffer[BUFFER_SIZE];
 	memset(buffer, 0, sizeof(buffer));
-	Client &cli = _clients[client_index - 1];
+	Client &cli = getClient(client_index);
 	int bytesReceived = recv(client_index, buffer, BUFFER_SIZE - 1, 0);
 	if (bytesReceived <= 0)
 	{
@@ -153,12 +153,14 @@ void Server::parseCommand(std::string cmd, Client &cli, int client_index)
 		else if (cmd.find("NICK") == 0 || cmd.find("nick") == 0)
 		{
 			handleNick(cmd, cli);
-			log("Client changed nickname to " + cli.getNick());
 		}
 		else if (cmd.find("USER") == 0 || cmd.find("user") == 0)
 		{
-			cli.setUsername(cmd.substr(5));
-			log("Client changed username to " + cli.getUsername());
+			handleUser(cmd, cli);
+		}
+		else if (cli.isRegistered())
+		{
+			std::cout << "Registered" << std::endl;
 		}
 		else
 		{
@@ -218,7 +220,10 @@ void Server::verifyPassword(std::string cmd, Client &cli, int client_index)
 void Server::handleNick(std::string cmd, Client &cli)
 {
 	std::string nick = cmd.substr(5);
-	printf("NICK: %s\n", nick.c_str());
+	size_t endPos = nick.find("\r\n");
+    if (endPos != std::string::npos)
+        nick = nick.substr(0, endPos);
+    nick = trim(nick);
 	if (nick.empty() || nick.size() > 9)
 	{
 		std::string error = "ERROR: Invalid nickname\r\n";
@@ -227,7 +232,6 @@ void Server::handleNick(std::string cmd, Client &cli)
 	}
 	for (size_t i = 0; i < _clients.size(); i++)
 	{
-		printf("Client Nick: %s\n", _clients[i].getNick().c_str());
 		if (nick == _clients[i].getNick())
 		{
 			std::string error = "ERROR: Nickname already in use\r\n";
@@ -241,16 +245,62 @@ void Server::handleNick(std::string cmd, Client &cli)
 		log("Client set nickname to " + cli.getNick());
 	else
 	{
-		std::string msg = "NICK " + oldNick + " " + cli.getNick() + "\n";
-		for (size_t i = 0; i < _clients.size(); i++)
-		{
-			if (_clients[i].getFd() != cli.getFd())
-				send(_clients[i].getFd(), msg.c_str(), msg.length(), 0);
-		}
+		removeNewlines(oldNick);
 		log(oldNick + " changed nickname to " + nick);
 	}
 }
 
+void Server::handleUser(std::string cmd, Client &cli)
+{
+	if (cli.isRegistered())
+	{
+		std::string error = "ERROR: Already registered\r\n";
+		send(cli.getFd(), error.c_str(), error.length(), 0);
+		return;
+	}
+	std::string info = cmd.substr(5);
+	if (info.empty())
+	{
+		std::string error = "ERROR: Invalid USER command\r\n";
+		send(cli.getFd(), error.c_str(), error.length(), 0);
+		return;
+	}
+	std::istringstream ss(info);
+	std::string username, hostname, servername, realname;
+	ss >> username >> hostname >> servername;
+	std::getline(ss, realname);
+	realname = realname.substr(1);
+
+	if (username.empty() || hostname.empty() || servername.empty() || realname.empty())
+	{
+		std::string error = "ERROR: Invalid USER command\r\n";
+		send(cli.getFd(), error.c_str(), error.length(), 0);
+		return;
+	}
+	cli.setUsername(username);
+	cli.setHostname(hostname);
+	cli.setServername(servername);
+	cli.setRealname(realname);
+	cli.registerClient();
+	
+	log("Client with nickname " + cli.getNick() + " registered with username " + cli.getUsername());
+	if (!cli.getNick().empty() && cli.isRegistered())
+	{
+		std::string welcome = "Welcome to the server " + cli.getNick() + "\r\n";
+		send(cli.getFd(), welcome.c_str(), welcome.length(), 0);
+	}
+}
+
+Client &Server::getClient(int fd)
+{
+	for (size_t i = 0; i < _clients.size(); i++)
+	{
+		if (_clients[i].getFd() == fd)
+			return _clients[i];
+	}
+	throw std::runtime_error("Client not found");
+	return _clients[0];
+}
 
 Server::~Server()
 {

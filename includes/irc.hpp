@@ -30,13 +30,19 @@
 #include "Client.hpp"
 #include <vector>
 #include <fcntl.h>
-
+#include <algorithm>
+#include <cctype>
+#include <sstream>
 
 #define BUFFER_SIZE 1024
 
 
 void log(const std::string &message);
 void exitError(const std::string &error);
+void removeNewlines(std::string &str);
+std::string trim(const std::string& str);
+
+
 
 
 

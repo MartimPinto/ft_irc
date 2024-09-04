@@ -6,13 +6,13 @@
 /*   By: mcarneir <mcarneir@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/08/26 17:12:05 by mcarneir          #+#    #+#             */
-/*   Updated: 2024/09/02 17:12:02 by mcarneir         ###   ########.fr       */
+/*   Updated: 2024/09/04 14:39:16 by mcarneir         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "../includes/Client.hpp"
 
-Client::Client(): _authenticated(false){}
+Client::Client(): _authenticated(false), _registered(false){}
 
 int Client::getFd()
 {
@@ -66,5 +66,46 @@ void Client::setUsername(std::string username)
 	else
 		_username = username;
 }
+
+bool Client::isRegistered()
+{
+	return this->_registered;
+}
+
+void Client::registerClient()
+{
+	_registered = true;
+}
+
+void Client::setRealname(std::string realname)
+{
+	_realname = realname;
+}
+
+std::string Client::getRealname()
+{
+	return this->_realname;
+}
+
+void Client::setHostname(std::string hostname)
+{
+	_hostname = hostname;
+}
+
+std::string Client::getHostname()
+{
+	return this->_hostname;
+}
+
+void Client::setServername(std::string servername)
+{
+	_servername = servername;
+}
+
+std::string Client::getServername()
+{
+	return this->_servername;
+}
+
 
 Client::~Client(){}

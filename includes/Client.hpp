@@ -6,7 +6,7 @@
 /*   By: mcarneir <mcarneir@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/08/26 16:56:24 by mcarneir          #+#    #+#             */
-/*   Updated: 2024/09/04 14:38:52 by mcarneir         ###   ########.fr       */
+/*   Updated: 2024/09/12 16:11:25 by mcarneir         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,6 +14,7 @@
 #define CLIENT_HPP
 
 #include "irc.hpp"
+#include <vector>
 
 class Client
 {
@@ -39,6 +40,9 @@ class Client
 			std::string getHostname();
 			void setServername(std::string servername);
 			std::string getServername();
+			std::vector<std::string> getChannels();
+			void joinChannel(const std::string &channel);
+			void leaveChannel(const std::string &channel);
 
 	private:
 			int _fd;
@@ -50,6 +54,7 @@ class Client
 			std::string _realname;
 			std::string _hostname;
 			std::string _servername;
+			std::vector<std::string> _channels;
 };
 
 #endif

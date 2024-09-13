@@ -6,7 +6,7 @@
 /*   By: mcarneir <mcarneir@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/08/12 15:17:26 by mcarneir          #+#    #+#             */
-/*   Updated: 2024/09/04 15:22:20 by mcarneir         ###   ########.fr       */
+/*   Updated: 2024/09/13 15:48:19 by mcarneir         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -160,7 +160,8 @@ void Server::parseCommand(std::string cmd, Client &cli, int client_index)
 		}
 		else if (cli.isRegistered())
 		{
-			std::cout << "Registered" << std::endl;
+			if (cmd.find("JOIN") == 0 || cmd.find("join") == 0)
+				handleJoin(cmd, cli);
 		}
 		else
 		{
@@ -178,6 +179,9 @@ void Server::closeServer()
 		close(_clients[i].getFd());
 	}
 	close(_socket);
+	for (std::map<std::string, Channel>::iterator it = _channels.begin(); it != _channels.end(); ++it)
+		delete &it->second;
+	_clients.clear();
 	exit(0);
 }
 
@@ -289,6 +293,42 @@ void Server::handleUser(std::string cmd, Client &cli)
 		std::string welcome = "Welcome to the server " + cli.getNick() + "\r\n";
 		send(cli.getFd(), welcome.c_str(), welcome.length(), 0);
 	}
+}
+
+void Server::handleJoin(std::string cmd, Client &cli)
+{
+	std::string channel = cmd.substr(5);
+	size_t endPos = channel.find("\r\n");
+	if (endPos != std::string::npos)
+		channel = channel.substr(0, endPos);
+	channel = trim(channel);
+	if (channel.empty() || channel[0] != '#' || channel.size() > 50)
+	{
+		std::string error = "ERROR: Invalid channel name\r\n";
+		send(cli.getFd(), error.c_str(), error.length(), 0);
+		return;
+	}
+	
+	std::pair<std::map<std::string, Channel>::iterator, bool> result = _channels.insert(std::make_pair(channel, Channel(channel)));
+    Channel &chan = result.first->second;
+
+    if (result.second) {
+        chan.addOperator(cli);
+        log("Created new channel: " + channel);
+    }
+
+    std::string welcomeMessage = ":" + cli.getNick() + " JOIN " + channel + "\r\n";
+    send(cli.getFd(), welcomeMessage.c_str(), welcomeMessage.length(), 0);
+
+    std::vector<Client *> clientsInChannel = chan.getClients();
+    for (size_t i = 0; i < clientsInChannel.size(); ++i) {
+        if (clientsInChannel[i]->getFd() != cli.getFd()) {
+            std::string joinMsg = ":" + cli.getNick() + " has joined " + channel + "\r\n";
+            send(clientsInChannel[i]->getFd(), joinMsg.c_str(), joinMsg.length(), 0);
+        }
+    }
+	log(cli.getNick() + " joined channel: " + channel);
+
 }
 
 Client &Server::getClient(int fd)

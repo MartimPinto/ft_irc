@@ -6,7 +6,7 @@
 /*   By: mcarneir <mcarneir@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/08/13 12:06:14 by mcarneir          #+#    #+#             */
-/*   Updated: 2024/09/04 14:40:39 by mcarneir         ###   ########.fr       */
+/*   Updated: 2024/09/12 16:10:55 by mcarneir         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,10 +14,13 @@
 #define SERVER_HPP
 
 class Client;
+class Channel;
 
 #include "irc.hpp"
 #include <vector>
+#include <map>
 #include "Client.hpp"
+#include "Channel.hpp"
 
 class Server
 {
@@ -42,6 +45,7 @@ class Server
 			std::vector<struct pollfd> _fds;
 			std::vector<Client> _clients;
 			static bool Signal;
+			std::map<std::string, Channel> _channels;
 			
 
 			int startServer();
@@ -51,6 +55,7 @@ class Server
 			void verifyPassword(std::string cmd, Client &cli, int client_index);
 			void handleNick(std::string cmd, Client &cli);
 			void handleUser(std::string cmd, Client &cli);
+			void handleJoin(std::string cmd, Client &cli);
 
 };
 

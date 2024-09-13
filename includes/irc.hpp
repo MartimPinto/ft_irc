@@ -29,6 +29,7 @@
 #include "Server.hpp"
 #include "Client.hpp"
 #include <vector>
+#include <map>
 #include <fcntl.h>
 #include <algorithm>
 #include <cctype>

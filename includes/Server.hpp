@@ -6,7 +6,7 @@
 /*   By: mcarneir <mcarneir@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/08/13 12:06:14 by mcarneir          #+#    #+#             */
-/*   Updated: 2024/09/12 16:10:55 by mcarneir         ###   ########.fr       */
+/*   Updated: 2024/09/17 12:23:21 by mcarneir         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -49,6 +49,7 @@ class Server
 			
 
 			int startServer();
+			void sendResponse(std::string response, int client_index);
 			void handleNewConnection();
 			void handleClient(int client_index);
 			void parseCommand(std::string cmd, Client &cli, int client_index);
@@ -56,6 +57,7 @@ class Server
 			void handleNick(std::string cmd, Client &cli);
 			void handleUser(std::string cmd, Client &cli);
 			void handleJoin(std::string cmd, Client &cli);
+			void handlePart(std::string cmd, Client &cli);
 
 };
 

@@ -6,7 +6,7 @@
 /*   By: mcarneir <mcarneir@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/08/12 15:17:26 by mcarneir          #+#    #+#             */
-/*   Updated: 2024/09/13 15:48:19 by mcarneir         ###   ########.fr       */
+/*   Updated: 2024/09/17 15:50:56 by mcarneir         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -117,9 +117,11 @@ void Server::handleClient(int client_index)
 	int bytesReceived = recv(client_index, buffer, BUFFER_SIZE - 1, 0);
 	if (bytesReceived <= 0)
 	{
+		std::cout << "Client " << client_index << " disconnected" << std::endl;
 		close(client_index);
 		_fds.erase(_fds.begin() + client_index);
-		log("Client disconnected");
+		clearClients(client_index);
+		
 	}
 	else
 	{
@@ -148,6 +150,7 @@ void Server::parseCommand(std::string cmd, Client &cli, int client_index)
 		{
 			close(client_index);
 			_fds.erase(_fds.begin() + client_index);
+			_channels.erase(_channels.find(cli.getNick()));
 			log("Client disconnected");
 		}
 		else if (cmd.find("NICK") == 0 || cmd.find("nick") == 0)
@@ -162,6 +165,8 @@ void Server::parseCommand(std::string cmd, Client &cli, int client_index)
 		{
 			if (cmd.find("JOIN") == 0 || cmd.find("join") == 0)
 				handleJoin(cmd, cli);
+			else if (cmd.find("PART") == 0 || cmd.find("part") == 0)
+				handlePart(cmd, cli);
 		}
 		else
 		{
@@ -209,16 +214,21 @@ void Server::verifyPassword(std::string cmd, Client &cli, int client_index)
 {
 	std::string pass = cmd.substr(5);
 	pass = pass.substr(0, pass.find("\n"));
+	if (pass.empty())
+	{
+		sendResponse(ERR_NEEDMOREPARAMS(getClient(client_index).getNick()), client_index);
+		return ;
+	}
+	if (cli.isAuthenticated())
+		sendResponse(ERR_ALREADYREGISTERED(getClient(client_index).getNick()), client_index);
 	if (pass == _password)
 	{
+
 		cli.authenticate();
 		log("Client authenticated sucessfully");
 	}
 	else
-	{
-		std::string error = "ERROR: Provided incorrect password\r\n";
-        send(client_index, error.c_str(), error.length(), 0);
-	}
+		sendResponse(ERR_INCORPASS(getClient(client_index).getNick()), client_index);
 }
 
 void Server::handleNick(std::string cmd, Client &cli)
@@ -228,18 +238,17 @@ void Server::handleNick(std::string cmd, Client &cli)
     if (endPos != std::string::npos)
         nick = nick.substr(0, endPos);
     nick = trim(nick);
-	if (nick.empty() || nick.size() > 9)
+	removeNewlines(nick);
+	if (nick.empty() || nick.size() > 9 || nick[0] == '#' || nick[0] == '&' || nick[0] == ':')
 	{
-		std::string error = "ERROR: Invalid nickname\r\n";
-		send(cli.getFd(), error.c_str(), error.length(), 0);
+		sendResponse(ERR_ERRONEUSNICKNAME(cli.getNick()), cli.getFd());
 		return;
 	}
 	for (size_t i = 0; i < _clients.size(); i++)
 	{
 		if (nick == _clients[i].getNick())
 		{
-			std::string error = "ERROR: Nickname already in use\r\n";
-			send(cli.getFd(), error.c_str(), error.length(), 0);
+			sendResponse(ERR_NICKNAMEINUSE(cli.getNick()), cli.getFd());
 			return;
 		}
 	}
@@ -249,7 +258,6 @@ void Server::handleNick(std::string cmd, Client &cli)
 		log("Client set nickname to " + cli.getNick());
 	else
 	{
-		removeNewlines(oldNick);
 		log(oldNick + " changed nickname to " + nick);
 	}
 }
@@ -258,15 +266,13 @@ void Server::handleUser(std::string cmd, Client &cli)
 {
 	if (cli.isRegistered())
 	{
-		std::string error = "ERROR: Already registered\r\n";
-		send(cli.getFd(), error.c_str(), error.length(), 0);
+		sendResponse(ERR_ALREADYREGISTERED(cli.getNick()), cli.getFd());
 		return;
 	}
 	std::string info = cmd.substr(5);
 	if (info.empty())
 	{
-		std::string error = "ERROR: Invalid USER command\r\n";
-		send(cli.getFd(), error.c_str(), error.length(), 0);
+		sendResponse(ERR_NEEDMOREPARAMS(cli.getNick()), cli.getFd());
 		return;
 	}
 	std::istringstream ss(info);
@@ -277,8 +283,7 @@ void Server::handleUser(std::string cmd, Client &cli)
 
 	if (username.empty() || hostname.empty() || servername.empty() || realname.empty())
 	{
-		std::string error = "ERROR: Invalid USER command\r\n";
-		send(cli.getFd(), error.c_str(), error.length(), 0);
+		sendResponse(ERR_NEEDMOREPARAMS(cli.getNick()), cli.getFd());
 		return;
 	}
 	cli.setUsername(username);
@@ -290,8 +295,7 @@ void Server::handleUser(std::string cmd, Client &cli)
 	log("Client with nickname " + cli.getNick() + " registered with username " + cli.getUsername());
 	if (!cli.getNick().empty() && cli.isRegistered())
 	{
-		std::string welcome = "Welcome to the server " + cli.getNick() + "\r\n";
-		send(cli.getFd(), welcome.c_str(), welcome.length(), 0);
+		sendResponse(RPL_CONNECTED(cli.getNick()), cli.getFd());
 	}
 }
 
@@ -311,24 +315,69 @@ void Server::handleJoin(std::string cmd, Client &cli)
 	
 	std::pair<std::map<std::string, Channel>::iterator, bool> result = _channels.insert(std::make_pair(channel, Channel(channel)));
     Channel &chan = result.first->second;
-
-    if (result.second) {
+    if (result.second) 
+	{
         chan.addOperator(cli);
         log("Created new channel: " + channel);
     }
+	chan.addClient(&cli);
+	cli.joinChannel(channel);
 
     std::string welcomeMessage = ":" + cli.getNick() + " JOIN " + channel + "\r\n";
     send(cli.getFd(), welcomeMessage.c_str(), welcomeMessage.length(), 0);
+	cli.joinChannel(channel);
 
     std::vector<Client *> clientsInChannel = chan.getClients();
-    for (size_t i = 0; i < clientsInChannel.size(); ++i) {
-        if (clientsInChannel[i]->getFd() != cli.getFd()) {
+    for (size_t i = 0; i < clientsInChannel.size(); ++i) 
+	{
+        if (clientsInChannel[i]->getFd() != cli.getFd()) 
+		{
             std::string joinMsg = ":" + cli.getNick() + " has joined " + channel + "\r\n";
             send(clientsInChannel[i]->getFd(), joinMsg.c_str(), joinMsg.length(), 0);
         }
     }
 	log(cli.getNick() + " joined channel: " + channel);
+}
 
+
+void Server::handlePart(std::string cmd, Client &cli)
+{
+	std::string channel = cmd.substr(5);
+	size_t endPos = channel.find("\r\n");
+	if (endPos != std::string::npos)
+		channel = channel.substr(0, endPos);
+	channel = trim(channel);
+	if (channel.empty() || channel[0] != '#' || channel.size() > 50)
+	{
+		sendResponse(ERR_NOSUCHCHANNEL(channel), cli.getFd());
+		return;
+	}
+	std::map<std::string, Channel>::iterator it = _channels.find(channel);
+	if (it == _channels.end())
+	{
+		sendResponse(ERR_NOSUCHCHANNEL(channel), cli.getFd());
+		return;
+	}
+	Channel &chan = it->second;
+	if (std::find(chan.getClients().begin(), chan.getClients().end(), &cli) == chan.getClients().end())
+	{
+		sendResponse(ERR_NOTONCHANNEL(channel), cli.getFd());
+		return;
+	}
+	chan.removeClient(&cli);
+	cli.leaveChannel(channel);
+	std::string partMsg = ":" + cli.getNick() + " PART " + channel + "\r\n";
+	std::vector<Client *> clientsInChannel = chan.getClients();
+	for (size_t i = 0; i < clientsInChannel.size(); ++i)
+	{
+		send(clientsInChannel[i]->getFd(), partMsg.c_str(), partMsg.length(), 0);
+	}
+	log(cli.getNick() + " left channel: " + channel);
+	if (chan.getClients().empty())
+	{
+		_channels.erase(it);
+		log("Channel " + channel + " has been deleted");
+	}
 }
 
 Client &Server::getClient(int fd)
@@ -340,6 +389,12 @@ Client &Server::getClient(int fd)
 	}
 	throw std::runtime_error("Client not found");
 	return _clients[0];
+}
+
+void Server::sendResponse(std::string response, int client_index)
+{
+	if (send(client_index, response.c_str(), response.length(), 0) == -1)
+		std::cerr << "Error sending response" << std::endl;
 }
 
 Server::~Server()

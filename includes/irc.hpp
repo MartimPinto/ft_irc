@@ -34,8 +34,18 @@
 #include <algorithm>
 #include <cctype>
 #include <sstream>
+#define CRLF "\r\n"
 
 #define BUFFER_SIZE 1024
+#define ERR_NEEDMOREPARAMS(nickname) (": 461 " + nickname + "Need more parameters" + CRLF)
+#define ERR_ALREADYREGISTERED(nickname) (": 462 " + nickname + "Unauthorized command (already registered)" + CRLF)
+#define ERR_NICKNAMEINUSE(nickname) (": 433 " + nickname + "Nickname is already in use" + CRLF)
+#define ERR_INCORPASS(nickname) (": 464 " + nickname + "Password incorrect !" + CRLF)
+#define ERR_ERRONEUSNICKNAME(nickname) (": 432 " + nickname + "Erroneus nickname" + CRLF)
+#define ERR_NOSUCHCHANNEL(channelName) (": 403 " + channelName + "No such channel" + CRLF)
+#define ERR_NOTONCHANNEL(channelName) (": 442 " + channelName + "You're not on that channel" + CRLF)
+
+#define RPL_CONNECTED(nickname) (": 001 " + nickname + " : Welcome to the IRC server!" + CRLF)
 
 
 void log(const std::string &message);

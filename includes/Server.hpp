@@ -6,7 +6,7 @@
 /*   By: mcarneir <mcarneir@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/08/13 12:06:14 by mcarneir          #+#    #+#             */
-/*   Updated: 2024/09/17 12:23:21 by mcarneir         ###   ########.fr       */
+/*   Updated: 2024/10/22 12:41:09 by mcarneir         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -30,8 +30,11 @@ class Server
 			void startListen();
 			static void sigHandler(int signum);
 			void clearClients(int fd);
+			void clearChannels(int fd);
 			void closeServer();
 			Client &getClient(int fd);
+			Client *getClientNick(const std::string &nick);
+			void printChannelNames() const;
 	
 	private:
 			std::string m_ip_address;
@@ -58,6 +61,7 @@ class Server
 			void handleUser(std::string cmd, Client &cli);
 			void handleJoin(std::string cmd, Client &cli);
 			void handlePart(std::string cmd, Client &cli);
+			void handlePrivMSG(std::string cmd, Client &cli);
 
 };
 

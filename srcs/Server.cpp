@@ -6,7 +6,7 @@
 /*   By: mcarneir <mcarneir@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/08/12 15:17:26 by mcarneir          #+#    #+#             */
-/*   Updated: 2024/09/17 15:50:56 by mcarneir         ###   ########.fr       */
+/*   Updated: 2024/10/22 13:17:07 by mcarneir         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -167,6 +167,8 @@ void Server::parseCommand(std::string cmd, Client &cli, int client_index)
 				handleJoin(cmd, cli);
 			else if (cmd.find("PART") == 0 || cmd.find("part") == 0)
 				handlePart(cmd, cli);
+			else if (cmd.find("PRIVMSG") == 0)
+				handlePrivMSG(cmd, cli);
 		}
 		else
 		{
@@ -187,6 +189,7 @@ void Server::closeServer()
 	for (std::map<std::string, Channel>::iterator it = _channels.begin(); it != _channels.end(); ++it)
 		delete &it->second;
 	_clients.clear();
+	_channels.clear();
 	exit(0);
 }
 
@@ -279,8 +282,16 @@ void Server::handleUser(std::string cmd, Client &cli)
 	std::string username, hostname, servername, realname;
 	ss >> username >> hostname >> servername;
 	std::getline(ss, realname);
-	realname = realname.substr(1);
-
+	removeSpacesAtStart(realname);
+	if (!realname.empty() && realname[0] == ':')
+	{
+    	realname = realname.substr(1);
+	}
+	else
+	{
+		sendResponse(ERR_NEEDMOREPARAMS(cli.getNick()), cli.getFd());
+		return ;
+	}
 	if (username.empty() || hostname.empty() || servername.empty() || realname.empty())
 	{
 		sendResponse(ERR_NEEDMOREPARAMS(cli.getNick()), cli.getFd());
@@ -306,15 +317,16 @@ void Server::handleJoin(std::string cmd, Client &cli)
 	if (endPos != std::string::npos)
 		channel = channel.substr(0, endPos);
 	channel = trim(channel);
+	removeNewlines(channel);
 	if (channel.empty() || channel[0] != '#' || channel.size() > 50)
 	{
 		std::string error = "ERROR: Invalid channel name\r\n";
 		send(cli.getFd(), error.c_str(), error.length(), 0);
 		return;
 	}
-	
 	std::pair<std::map<std::string, Channel>::iterator, bool> result = _channels.insert(std::make_pair(channel, Channel(channel)));
     Channel &chan = result.first->second;
+	
     if (result.second) 
 	{
         chan.addOperator(cli);
@@ -322,7 +334,7 @@ void Server::handleJoin(std::string cmd, Client &cli)
     }
 	chan.addClient(&cli);
 	cli.joinChannel(channel);
-
+	
     std::string welcomeMessage = ":" + cli.getNick() + " JOIN " + channel + "\r\n";
     send(cli.getFd(), welcomeMessage.c_str(), welcomeMessage.length(), 0);
 	cli.joinChannel(channel);
@@ -380,6 +392,62 @@ void Server::handlePart(std::string cmd, Client &cli)
 	}
 }
 
+void Server::handlePrivMSG(std::string cmd, Client &cli)
+{
+	printChannelNames();
+	std::istringstream iss(cmd);
+	std::string command, target, message;
+
+	iss >> command >> target;
+	std::getline(iss, message);
+	removeSpacesAtStart(message);
+	if (!message.empty() && message[0] == ':')
+		message = message.substr(1);
+	if (target.empty()) 
+	{
+        sendResponse(ERR_NORECIPIENT(cli.getNick()), cli.getFd());
+        return;
+    }
+    if (message.empty()) 
+	{
+        sendResponse(ERR_NOTEXTTOSEND(cli.getNick()), cli.getFd());
+        return;
+    }
+	target = trim(target);
+	removeNewlines(target);
+	if (target[0] == '#')
+	{
+		std::map<std::string, Channel>::iterator it = _channels.find(target);
+		if (it == _channels.end())
+		{
+			sendResponse(ERR_NOSUCHCHANNEL(target), cli.getFd());
+			return ;
+		}
+		
+		Channel &chan = it->second;
+		if (!chan.isClientInChannel(cli))
+		{
+			sendResponse(ERR_CANNOTSENDTOCHAN(cli.getNick(), target), cli.getFd());
+			return ;
+		}
+		std::string formatMessage = ":" + cli.getNick() + " PRIVMSG " + target + " :" + message + "\r\n";
+		chan.broadcastMessage(formatMessage, cli.getFd());
+		log(cli.getNick() + " sent a private message to " + target + ": " + message); 
+	}
+	else
+	{
+		Client *targetCli = getClientNick(target);
+		if (targetCli == NULL)
+		{
+			sendResponse(ERR_NOSUCHNICK(target), cli.getFd());
+			return;
+		}
+		std::string formatMessage = ":" + cli.getNick() + " PRIVMSG " + target + " :" + message + CRLF;
+		send(targetCli->getFd(), formatMessage.c_str(), formatMessage.length(), 0);
+		log(cli.getNick() + " sent a private message to " + target + ": " + message);
+	}
+}
+
 Client &Server::getClient(int fd)
 {
 	for (size_t i = 0; i < _clients.size(); i++)
@@ -391,10 +459,28 @@ Client &Server::getClient(int fd)
 	return _clients[0];
 }
 
+Client *Server::getClientNick(const std::string &nick)
+{
+	for (size_t i = 0; i < _clients.size(); ++i)
+	{
+		if (_clients[i].getNick() == nick)
+			return &_clients[i];
+	}
+	return NULL;
+}
+
 void Server::sendResponse(std::string response, int client_index)
 {
 	if (send(client_index, response.c_str(), response.length(), 0) == -1)
 		std::cerr << "Error sending response" << std::endl;
+}
+
+void Server::printChannelNames() const
+{
+    for (std::map<std::string, Channel>::const_iterator it = _channels.begin(); it != _channels.end(); ++it)
+    {
+        std::cout << "Channel name stored: '" << it->first << "'" << std::endl;
+    }
 }
 
 Server::~Server()

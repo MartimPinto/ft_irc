@@ -6,7 +6,7 @@
 /*   By: mcarneir <mcarneir@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/09/12 15:47:43 by mcarneir          #+#    #+#             */
-/*   Updated: 2024/09/12 16:12:29 by mcarneir         ###   ########.fr       */
+/*   Updated: 2024/10/22 11:48:12 by mcarneir         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -59,3 +59,23 @@ void Channel::addOperator(Client &client)
 {
 	this->_operators.push_back(&client);
 }
+
+bool Channel::isClientInChannel(const Client &client) const
+{
+	if (std::find(_clients.begin(), _clients.end(), &client) != _clients.end())
+		return true;
+	return false;
+}
+
+void Channel::broadcastMessage(const std::string &message, int senderFd) 
+{
+    for (size_t i = 0; i < _clients.size(); ++i) 
+	{
+        Client* client = _clients[i];    
+        if (client->getFd() != senderFd) {
+            send(client->getFd(), message.c_str(), message.length(), 0);
+        }
+    }
+    std::cout << std::endl;
+}
+

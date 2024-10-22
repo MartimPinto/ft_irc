@@ -28,6 +28,13 @@ void removeNewlines(std::string &str)
     str.erase(std::remove(str.begin(), str.end(), '\n'), str.end());
 }
 
+void removeSpacesAtStart(std::string &str)
+{
+    size_t pos = str.find_first_not_of(" \t");
+	if (pos != std::string::npos)
+		str = str.substr(pos);
+}
+
 std::string trim(const std::string& str)
 {
     size_t first = str.find_first_not_of(' ');

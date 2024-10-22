@@ -42,8 +42,13 @@
 #define ERR_NICKNAMEINUSE(nickname) (": 433 " + nickname + "Nickname is already in use" + CRLF)
 #define ERR_INCORPASS(nickname) (": 464 " + nickname + "Password incorrect !" + CRLF)
 #define ERR_ERRONEUSNICKNAME(nickname) (": 432 " + nickname + "Erroneus nickname" + CRLF)
-#define ERR_NOSUCHCHANNEL(channelName) (": 403 " + channelName + "No such channel" + CRLF)
+#define ERR_NOSUCHCHANNEL(channelName) (": 403 " + channelName + " No such channel" + CRLF)
 #define ERR_NOTONCHANNEL(channelName) (": 442 " + channelName + "You're not on that channel" + CRLF)
+#define ERR_NORECIPIENT(nickname) ("411 " + nickname + " :No recipient given (PRIVMSG)" + CRLF)
+#define ERR_NOTEXTTOSEND(nickname) ("412 " + nickname + " :No text to send" + CRLF)
+#define ERR_NOSUCHNICK(nickname) ("401 " + nickname + " :No such nick/channel" + CRLF)
+#define ERR_CANNOTSENDTOCHAN(nickname, channel) ("404 " + nickname + " :Cannot send to channel" + channel + CRLF)
+
 
 #define RPL_CONNECTED(nickname) (": 001 " + nickname + " : Welcome to the IRC server!" + CRLF)
 
@@ -51,6 +56,7 @@
 void log(const std::string &message);
 void exitError(const std::string &error);
 void removeNewlines(std::string &str);
+void removeSpacesAtStart(std::string &str);
 std::string trim(const std::string& str);
 
 

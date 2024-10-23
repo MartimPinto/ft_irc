@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Server.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: mcarneir <mcarneir@student.42.fr>          +#+  +:+       +#+        */
+/*   By: juno <juno@student.42.fr>                  +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/08/12 15:17:26 by mcarneir          #+#    #+#             */
-/*   Updated: 2024/10/22 13:17:07 by mcarneir         ###   ########.fr       */
+/*   Updated: 2024/10/23 14:54:08 by juno             ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -186,8 +186,8 @@ void Server::closeServer()
 		close(_clients[i].getFd());
 	}
 	close(_socket);
-	for (std::map<std::string, Channel>::iterator it = _channels.begin(); it != _channels.end(); ++it)
-		delete &it->second;
+	/*for (std::map<std::string, Channel>::iterator it = _channels.begin(); it != _channels.end(); ++it)
+		delete &it->second;*/
 	_clients.clear();
 	_channels.clear();
 	exit(0);

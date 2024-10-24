@@ -3,7 +3,7 @@
 /*                                                        :::      ::::::::   */
 /*   Server.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: mcarneir <mcarneir@student.42.fr>          +#+  +:+       +#+        */
+/*   By: juno <juno@student.42.fr>                  +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/08/12 15:17:26 by mcarneir          #+#    #+#             */
 /*   Updated: 2024/10/24 16:58:00 by mcarneir         ###   ########.fr       */
@@ -190,6 +190,7 @@ void Server::parseCommand(std::string cmd, Client &cli, int client_index)
 		}	
 	}
 }
+
 
 void Server::handleNick(std::string cmd, Client &cli)
 {

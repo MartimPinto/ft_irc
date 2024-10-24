@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   main.cpp                                           :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: mcarneir <mcarneir@student.42.fr>          +#+  +:+       +#+        */
+/*   By: juno <juno@student.42.fr>                  +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/08/13 12:48:15 by mcarneir          #+#    #+#             */
-/*   Updated: 2024/08/28 15:26:05 by mcarneir         ###   ########.fr       */
+/*   Updated: 2024/10/23 15:13:27 by juno             ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,6 +15,8 @@
 bool isValidPort(std::string arg)
 {
 	if(arg.find_first_not_of("0123456789") != std::string::npos)
+		return false;
+	if (arg.length() > 7)
 		return false;
 	return true;
 }

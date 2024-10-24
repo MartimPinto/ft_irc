@@ -6,7 +6,7 @@
 /*   By: mcarneir <mcarneir@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/08/12 15:17:26 by mcarneir          #+#    #+#             */
-/*   Updated: 2024/10/22 13:17:07 by mcarneir         ###   ########.fr       */
+/*   Updated: 2024/10/24 16:58:00 by mcarneir         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -38,6 +38,20 @@ _newSocket(), _socketAddress(), _socketAddressLen(sizeof(_socketAddress)), _pass
 		_fds.push_back(pfd);
 		
 	}
+}
+
+Server &Server::operator=(const Server &src)
+{
+	if (this != &src)
+	{
+		this->_port = src._port;
+		this->_socket = src._socket;
+		this->_password = src._password;
+		this->_channels = src._channels;
+		this->_clients = src._clients;
+		this->_fds = src._fds;
+	}	
+	return *this;
 }
 
 int Server::startServer()
@@ -118,9 +132,9 @@ void Server::handleClient(int client_index)
 	if (bytesReceived <= 0)
 	{
 		std::cout << "Client " << client_index << " disconnected" << std::endl;
-		close(client_index);
-		_fds.erase(_fds.begin() + client_index);
+		clearChannels(client_index);
 		clearClients(client_index);
+		close(client_index);
 		
 	}
 	else
@@ -140,18 +154,15 @@ void Server::parseCommand(std::string cmd, Client &cli, int client_index)
 			verifyPassword(cmd, cli, client_index);
 		else
 		{
-				std::string error = "ERROR: Use PASS command and type password to authenticate client\r\n";
-                send(client_index, error.c_str(), error.length(), 0);
+			std::string error = "ERROR: Use PASS command and type password to authenticate client\r\n";
+            send(client_index, error.c_str(), error.length(), 0);
 		}
 	}
 	else
 	{
 		if (cmd.find("QUIT") == 0 || cmd.find("quit") == 0)
 		{
-			close(client_index);
-			_fds.erase(_fds.begin() + client_index);
-			_channels.erase(_channels.find(cli.getNick()));
-			log("Client disconnected");
+			handleQuit(cmd, client_index);
 		}
 		else if (cmd.find("NICK") == 0 || cmd.find("nick") == 0)
 		{
@@ -169,6 +180,8 @@ void Server::parseCommand(std::string cmd, Client &cli, int client_index)
 				handlePart(cmd, cli);
 			else if (cmd.find("PRIVMSG") == 0)
 				handlePrivMSG(cmd, cli);
+			else if (cmd.find("LIST") == 0 || cmd.find("list") == 0)
+				handleList(cli);
 		}
 		else
 		{
@@ -176,62 +189,6 @@ void Server::parseCommand(std::string cmd, Client &cli, int client_index)
 			send(client_index, error.c_str(), error.length(), 0);
 		}	
 	}
-}
-
-void Server::closeServer()
-{
-	for (size_t i = 0; i < _clients.size(); i++)
-	{
-		std::cout << "Client " << _clients[i].getFd() << " disconnected" << std::endl;
-		close(_clients[i].getFd());
-	}
-	close(_socket);
-	for (std::map<std::string, Channel>::iterator it = _channels.begin(); it != _channels.end(); ++it)
-		delete &it->second;
-	_clients.clear();
-	_channels.clear();
-	exit(0);
-}
-
-void Server::clearClients(int fd)
-{
-	for(size_t i = 0; i < _fds.size(); i++)
-	{
-		if (_fds[i].fd == fd)
-		{
-			_fds.erase(_fds.begin() + i);
-			break ;
-		}
-	}
-	for(size_t i = 0; i < _clients.size(); i++)
-	{
-		if(_clients[i].getFd() == fd)
-		{
-			_clients.erase(_clients.begin() + i);
-			break;
-		}
-	}
-}
-
-void Server::verifyPassword(std::string cmd, Client &cli, int client_index)
-{
-	std::string pass = cmd.substr(5);
-	pass = pass.substr(0, pass.find("\n"));
-	if (pass.empty())
-	{
-		sendResponse(ERR_NEEDMOREPARAMS(getClient(client_index).getNick()), client_index);
-		return ;
-	}
-	if (cli.isAuthenticated())
-		sendResponse(ERR_ALREADYREGISTERED(getClient(client_index).getNick()), client_index);
-	if (pass == _password)
-	{
-
-		cli.authenticate();
-		log("Client authenticated sucessfully");
-	}
-	else
-		sendResponse(ERR_INCORPASS(getClient(client_index).getNick()), client_index);
 }
 
 void Server::handleNick(std::string cmd, Client &cli)
@@ -359,6 +316,7 @@ void Server::handlePart(std::string cmd, Client &cli)
 	if (endPos != std::string::npos)
 		channel = channel.substr(0, endPos);
 	channel = trim(channel);
+	removeNewlines(channel);
 	if (channel.empty() || channel[0] != '#' || channel.size() > 50)
 	{
 		sendResponse(ERR_NOSUCHCHANNEL(channel), cli.getFd());
@@ -448,6 +406,60 @@ void Server::handlePrivMSG(std::string cmd, Client &cli)
 	}
 }
 
+void Server::handleList(Client &cli)
+{
+	std::string begin = RPL_LISTSTART(cli.getNick());
+	send(cli.getFd(), begin.c_str(), begin.length(), 0);
+	std::map<std::string, Channel>::iterator it = _channels.begin();
+	while (it != _channels.end())
+	{
+		std::string name = it->first;
+		int numUsers = it->second.getNumUsers();
+		std::string numUsersStr = intToStr(numUsers);
+		std::string response = RPL_LIST(cli.getNick(), name, numUsersStr);
+		send(cli.getFd(), response.c_str(), response.length(), 0);
+		++it;
+	}
+}
+
+void Server::handleQuit(std::string cmd, int fd)
+{
+	std::string message = cmd.substr(5);
+	size_t endPos = message.find("\r\n");
+	if (endPos != std::string::npos)
+		message = message.substr(0, endPos);
+	message = trim(message);
+	removeNewlines(message);
+	if (message.empty())
+		message = "Client quit";
+	std::string quitMessage = ":" + getClient(fd).getNick() + " QUIT :" + message + "\r\n";
+	std::vector<std::string> channels = getClient(fd).getChannels();
+	for (size_t i = 0; i < channels.size(); ++i)
+	{
+		std::map<std::string, Channel>::iterator it = _channels.find(channels[i]);
+		if (it != _channels.end())
+		{
+			Channel &chan = it->second;
+			chan.removeClient(&getClient(fd));
+			std::vector<Client *> clientsInChannel = chan.getClients();
+			for (size_t j = 0; j < clientsInChannel.size(); ++j)
+			{
+				send(clientsInChannel[j]->getFd(), quitMessage.c_str(), quitMessage.length(), 0);
+			}
+			if (chan.getClients().empty())
+			{
+				_channels.erase(it);
+				log("Channel " + channels[i] + " has been deleted");
+			}
+		}
+	}
+	std::string quitMsg = "Client " + getClient(fd).getNick() + " has quit\r\n";
+	log(quitMsg);
+	clearChannels(fd);
+	clearClients(fd);
+	close(fd);
+}
+
 Client &Server::getClient(int fd)
 {
 	for (size_t i = 0; i < _clients.size(); i++)
@@ -467,20 +479,6 @@ Client *Server::getClientNick(const std::string &nick)
 			return &_clients[i];
 	}
 	return NULL;
-}
-
-void Server::sendResponse(std::string response, int client_index)
-{
-	if (send(client_index, response.c_str(), response.length(), 0) == -1)
-		std::cerr << "Error sending response" << std::endl;
-}
-
-void Server::printChannelNames() const
-{
-    for (std::map<std::string, Channel>::const_iterator it = _channels.begin(); it != _channels.end(); ++it)
-    {
-        std::cout << "Channel name stored: '" << it->first << "'" << std::endl;
-    }
 }
 
 Server::~Server()

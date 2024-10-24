@@ -6,7 +6,7 @@
 /*   By: mcarneir <mcarneir@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/08/13 12:06:14 by mcarneir          #+#    #+#             */
-/*   Updated: 2024/10/22 12:41:09 by mcarneir         ###   ########.fr       */
+/*   Updated: 2024/10/24 16:56:37 by mcarneir         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -27,6 +27,7 @@ class Server
 	public:
 			Server(int port, std::string pass);
 			~Server();
+			Server &operator=(const Server &src);
 			void startListen();
 			static void sigHandler(int signum);
 			void clearClients(int fd);
@@ -62,6 +63,8 @@ class Server
 			void handleJoin(std::string cmd, Client &cli);
 			void handlePart(std::string cmd, Client &cli);
 			void handlePrivMSG(std::string cmd, Client &cli);
+			void handleList(Client &cli);
+			void handleQuit(std::string cmd, int fd);
 
 };
 

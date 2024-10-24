@@ -6,7 +6,7 @@
 /*   By: mcarneir <mcarneir@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/09/12 15:42:11 by mcarneir          #+#    #+#             */
-/*   Updated: 2024/10/21 16:58:23 by mcarneir         ###   ########.fr       */
+/*   Updated: 2024/10/24 16:13:37 by mcarneir         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -25,15 +25,22 @@ class Channel
 	public:
 			Channel(const std::string &name);
 			Channel(const Channel &src);
+			Channel &operator=(const Channel &src);
 			~Channel();
 			const std::string &getName() const;
 			void addClient(Client *client);
 			void removeClient(Client *client);
+			void removeClientFd(int fd);
 			std::vector<Client *> &getClients();
 			bool isOperator(Client &client);
 			void addOperator(Client &client);
+			void removeOperatorFd(int fd);
 			bool isClientInChannel(const Client &client) const;
-			void broadcastMessage(const std::string &message, int senderFD);	
+			void broadcastMessage(const std::string &message, int senderFD);
+			int getNumUsers() const;	
+			Client *getClient(int fd);
+			Client *getOperator(int fd);
+			void sendAll(std::string msg);
 };
 
 #endif

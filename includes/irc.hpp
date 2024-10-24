@@ -51,13 +51,15 @@
 
 
 #define RPL_CONNECTED(nickname) (": 001 " + nickname + " : Welcome to the IRC server!" + CRLF)
-
+#define RPL_LISTSTART(nickname) (": 321 " + nickname + " Channel :Users Topic" + CRLF)
+#define RPL_LIST(nickname, channelName, numUsers) (": 322 " + nickname + " " + channelName + " :" + numUsers + CRLF)
 
 void log(const std::string &message);
 void exitError(const std::string &error);
 void removeNewlines(std::string &str);
 void removeSpacesAtStart(std::string &str);
 std::string trim(const std::string& str);
+std::string intToStr(int num);
 
 
 
